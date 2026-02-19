@@ -1,0 +1,92 @@
+# ============================================================
+#  Digital Steward — Configuration
+#  F1 Track Limit Violation Detector on NVIDIA GB10 (Blackwell)
+# ============================================================
+
+project:
+  name: "digital_steward"
+  version: "1.0.0"
+  seed: 42
+
+# ── Hardware ────────────────────────────────────────────────
+hardware:
+  device: "cuda"               # cuda | cpu
+  num_workers: 8
+  pin_memory: true
+  amp_enabled: true            # Automatic Mixed Precision (Blackwell Tensor Cores)
+  tensorrt_enabled: true       # TensorRT export for 60 FPS @ 4K
+
+# ── Paths ────────────────────────────────────────────────────
+paths:
+  raw_data:    "data/raw"
+  aug_data:    "data/augmented"
+  models:      "models"
+  outputs:     "outputs"
+  logs:        "logs"
+
+# ── Dataset ──────────────────────────────────────────────────
+dataset:
+  image_size: [1280, 720]      # Training resolution (scales to 4K at inference)
+  batch_size: 16
+  val_split: 0.15
+  test_split: 0.05
+  num_classes: 3               # 0=car, 1=track, 2=out_of_bounds
+  class_names: ["car", "track", "out_of_bounds"]
+
+# ── Augmentation ─────────────────────────────────────────────
+augmentation:
+  rotation_degrees: 15
+  color_jitter:
+    brightness: 0.3
+    contrast:   0.3
+    saturation: 0.2
+    hue:        0.05
+  mosaic_prob:  0.5
+  mixup_prob:   0.2
+  rain_prob:    0.15           # Synthetic rain overlay
+  night_prob:   0.10           # Night-time gamma adjustment
+
+# ── ViT + FPN Model ──────────────────────────────────────────
+vit_fpn:
+  backbone: "vit_b_16"
+  pretrained_weights: "imagenet21k"
+  fpn_out_channels: 256
+  freeze_backbone_epochs: 5   # Freeze ViT for first N epochs, then unfreeze
+  dropout: 0.1
+
+# ── YOLOv8-seg ───────────────────────────────────────────────
+yolo:
+  model: "yolov8n-seg.pt"     # Nano variant for real-time
+  conf_threshold: 0.45
+  iou_threshold:  0.5
+  imgsz: 1280
+
+# ── Training ─────────────────────────────────────────────────
+training:
+  epochs: 100
+  optimizer: "adamw"
+  base_lr: 1.0e-4
+  weight_decay: 1.0e-4
+  scheduler: "cosine"         # cosine annealing with warmup
+  warmup_epochs: 5
+  gradient_clip: 1.0
+  early_stopping_patience: 15
+  save_best_only: true
+
+# ── Geometric Reasoning ──────────────────────────────────────
+geometry:
+  homography_points: 4        # Source points for perspective transform
+  violation_pixel_threshold: 0 # All 4 tires must have 0 "inside" pixels
+  tire_contact_radius_px: 12  # Radius to sample contact patch
+
+# ── FastF1 API ───────────────────────────────────────────────
+fastf1:
+  cache_dir: ".fastf1_cache"
+  confidence_flag_threshold: 0.80   # FLAG if AI confidence > 80% but FIA missed it
+
+# ── Inference ────────────────────────────────────────────────
+inference:
+  target_fps: 60
+  input_resolution: [3840, 2160]    # 4K
+  trt_workspace_gb: 4
+  stream_buffer_frames: 5

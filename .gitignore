@@ -1,0 +1,23 @@
+# Model weights (too large for GitHub)
+runs/
+*.pt
+*.pth
+
+# FastF1 cache
+.fastf1_cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+f1_steward_env/
+
+# Dataset (not yours to redistribute)
+*.jpg
+*.png
+*.txt
+data/
+
+# Misc
+.DS_Store
+*.log
